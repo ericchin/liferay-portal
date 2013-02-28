@@ -558,12 +558,43 @@ public class DLFolderLocalServiceUtil {
 		getService().getSubfolderIds(folderIds, groupId, folderId);
 	}
 
+	public static com.liferay.portal.model.Lock lockFolder(long userId,
+		long folderId)
+		throws com.liferay.portal.kernel.exception.PortalException,
+			com.liferay.portal.kernel.exception.SystemException {
+		return getService().lockFolder(userId, folderId);
+	}
+
+	public static com.liferay.portal.model.Lock lockFolder(long userId,
+		long folderId, java.lang.String owner, boolean inheritable,
+		long expirationTime)
+		throws com.liferay.portal.kernel.exception.PortalException,
+			com.liferay.portal.kernel.exception.SystemException {
+		return getService()
+				   .lockFolder(userId, folderId, owner, inheritable,
+			expirationTime);
+	}
+
 	public static com.liferay.portlet.documentlibrary.model.DLFolder moveFolder(
 		long folderId, long parentFolderId,
 		com.liferay.portal.service.ServiceContext serviceContext)
 		throws com.liferay.portal.kernel.exception.PortalException,
 			com.liferay.portal.kernel.exception.SystemException {
 		return getService().moveFolder(folderId, parentFolderId, serviceContext);
+	}
+
+	public static void unlockFolder(long groupId, long folderId,
+		java.lang.String lockUuid)
+		throws com.liferay.portal.kernel.exception.PortalException,
+			com.liferay.portal.kernel.exception.SystemException {
+		getService().unlockFolder(groupId, folderId, lockUuid);
+	}
+
+	public static void unlockFolder(long groupId, long parentFolderId,
+		java.lang.String name, java.lang.String lockUuid)
+		throws com.liferay.portal.kernel.exception.PortalException,
+			com.liferay.portal.kernel.exception.SystemException {
+		getService().unlockFolder(groupId, parentFolderId, name, lockUuid);
 	}
 
 	public static com.liferay.portlet.documentlibrary.model.DLFolder updateFolder(
