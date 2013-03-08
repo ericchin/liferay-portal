@@ -4,7 +4,7 @@
  * Copyright (c) 2012 Richard Willis; Licensed MIT
  */
 
-(function(window, $) {
+(function(window, A) {
 
   /* Config
    *************************/
@@ -42,7 +42,7 @@
 
   if (!Function.prototype.bind) {
     Function.prototype.bind = function(scope) {
-      return $.proxy(this, scope);
+      return A.bind(this, scope);
     };
   }
 
@@ -54,7 +54,7 @@
   };
 
   var decode = function(text) {
-    return $('<div />').html(text).html();
+    return AUI().Node.create('<div />').html(text).html();
   };
 
   RegExp.escape = function(text) {
@@ -77,14 +77,19 @@
   Events.prototype = {
     on: function(name, handler) {
       if (!this._handlers[name]) {
-        this._handlers[name] = $.Callbacks();
+        this._handlers[name] = Callbacks();
       }
       this._handlers[name].add(handler);
     },
     trigger: function(name) {
       var args = Array.prototype.slice.call(arguments, 1);
-      if ($.isFunction(name)) {
-        return name.apply(this, args);
+      // CUSTOM START
+      // if (A.isFunction(name)) {
+      var instance = this;
+      if (typeof instance[name] === 'function') {
+      // CUSTOM END
+        // return name.apply(this, args);
+          return instance[name](args);
       }
       if (this._handlers[name]) {
         this._handlers[name].fireWith(this, args);
@@ -97,25 +102,25 @@
     }
   };
 
-  /* Handlers 
+  /* Handlers
    *************************/
 
   var selectWordHandler = function(handlerName) {
 
     return function(e) {
-    
+
       e.preventDefault();
       e.stopPropagation();
 
-      var element = $(e.currentTarget);
-      var word = $.trim(element.data('word') || element.text());
+      var element = A.one(e.currentTarget);
+      var word = A.lang.trim(element.data('word') || element.text());
 
       this.trigger(handlerName, e, word, element, this);
 
     }.bind(this);
-  };  
-  
-  /* Collections 
+  };
+
+  /* Collections
    *************************/
 
   var Collection = function(elements, instanceFactory) {
@@ -127,7 +132,7 @@
   };
 
   Collection.prototype.methods = function(methods) {
-    $.each(methods, function(i, method) {
+    AUI().each(methods, function(i, method) {
       this[method] = function() {
         this.execute(method, arguments);
       }.bind(this);
@@ -135,7 +140,7 @@
   };
 
   Collection.prototype.execute = function(method, args) {
-    $.each(this.instances, function(i, instance) {
+    AUI().each(this.instances, function(i, instance) {
       instance[method].apply(instance, args);
     });
   };
@@ -151,7 +156,8 @@
     Events.call(this);
     this.config = config;
     this.parser = parser;
-    this.spellCheckerElement = $(element);
+      // TODO: double check
+    this.spellCheckerElement = AUI().one(element);
     this.createBox();
     this.bindEvents();
   };
@@ -171,14 +177,14 @@
   };
 
   IncorrectWordsBox.prototype.createBox = function() {
-    
-    this.container = $([
+
+    this.container = A.node.create([
       '<div class="' + pluginName + '-incorrectwords">',
       '</div>'
     ].join(''))
     .hide();
 
-    if ($.isFunction(this.config.incorrectWords.position)) {
+    if (A.isFunction(this.config.incorrectWords.position)) {
       this.config.incorrectWords.position.call(this.spellCheckerElement, this.container);
     } else {
       this.container.appendTo(this.config.incorrectWords.container);
@@ -188,13 +194,26 @@
   IncorrectWordsBox.prototype.addWords = function(words) {
 
     // Make array values unique
-    words = $.grep(words, function(el, index){
-        return index === $.inArray(el, words);
+    words = A.grep(words, function(el, index){
+        return index === A.Array.indexOf(words, el);
     });
 
-    var html = $.map(words, function(word) {
+      // CUSTOM START
+    /*var html = $.map(words, function(word) {
       return '<a href="#">' + word + '</a>';
-    }).join('');
+    }).join('');*/
+      var mapped = [];
+
+      AUI().each(
+          words,
+          function(word) {
+              var temp = '<a href="#">' + word + '</a>';
+              mapped.push(temp);
+          }
+      );
+
+      var html = mapped.join('');
+      // CUSTOM END
 
     this.container.html(html).show();
   };
@@ -219,7 +238,7 @@
     Events.call(this);
     this.config = config;
     this.parser = parser;
-    this.spellCheckerElement = this.element = $(element);
+    this.spellCheckerElement = this.element = A.one(element);
     this.bindEvents();
   };
   inherits(IncorrectWordsInline, Events);
@@ -248,11 +267,17 @@
   var SuggestBox = function(config, element) {
     this.element = element;
     if (config.suggestBox.appendTo) {
-      this.body = $(config.suggestBox.appendTo);
+      this.body = AUI().one(config.suggestBox.appendTo);
     } else {
       this.body = (this.element.length && this.element[0].nodeName === 'BODY') ? this.element : 'body';
     }
-    this.position = $.isFunction(config.suggestBox.position) ? config.suggestBox.position : this.position;
+    // CUSTOM START
+    // this.position = A.isFunction(config.suggestBox.position) ? config.suggestBox.position : this.position;
+    var func = config.suggestBox.position;
+    if (typeof this[func] === 'function') {
+        this.position = config.suggestBox.position;
+    }
+    // CUSTOM END
     Box.apply(this, arguments);
   };
   inherits(SuggestBox, Box);
@@ -264,17 +289,20 @@
     this.container.on(click, '.ignore-all', this.handler('ignore.all'));
     this.container.on(click, '.ignore-forever', this.handler('ignore.forever'));
     this.container.on(click, '.words a', selectWordHandler.call(this, 'select.word'));
-    $('html').on(click, this.onWindowClick.bind(this));
-    if (this.element[0].nodeName === 'BODY') {
-      this.element.parent().on(click, this.onWindowClick.bind(this));
+    AUI().one('html').on(click, this.onWindowClick.bind(this));
+    // CUSTOM START -- element is not an array
+    // if (this.element[0].nodeName === 'BODY') {
+    if (this.element.nodeName === 'BODY') {
+      // this.element.parent().on(click, this.onWindowClick.bind(this));
     }
+    // CUSTOM END
   };
 
   SuggestBox.prototype.createBox = function() {
 
     var local = this.config.local;
 
-    this.container = $([
+    this.container = AUI().Node.create([
       '<div class="' + pluginName + '-suggestbox">',
       ' <div class="footer">',
       '   <a href="#" class="ignore-word">' + local.ignoreWord + '</a>',
@@ -284,37 +312,50 @@
       '</div>'
     ].join('')).appendTo(this.body);
 
-    this.words = $([
+    this.words = AUI().Node.create([
       '<div class="words">',
       '</div>'
     ].join('')).prependTo(this.container);
 
-    this.loadingMsg = $([
+    this.loadingMsg = AUI().Node.create([
       '<div class="loading">',
       this.config.local.loading,
       '</div>'
     ].join(''));
 
-    this.footer = this.container.find('.footer').hide();
+    // CUSTOM -- commenting out for now
+    // TODO
+    // this.footer = this.container.find('.footer').hide();
   };
 
   SuggestBox.prototype.addWords = function(words) {
 
     var html;
+    var mapped = [];
 
     if (!words.length) {
       html = '<em>' + this.config.local.noSuggestions + '</em>';
     } else {
-      html = $.map(words, function(word) {
+        // CUSTOM START
+      /*html = $.map(words, function(word) {
         return '<a href="#">' + word + '</a>';
-      }).slice(0, this.config.suggestBox.numWords).join('');
+      }).slice(0, this.config.suggestBox.numWords).join('');*/
+        AUI().each(
+            words,
+            function(word) {
+                mapped.push('<a href="#">' + word + '</a>');
+            }
+        );
+
+        html = mapped.slice(0, this.config.suggestBox.numWords).join('');
+        // CUSTOM END
     }
 
     this.words.html(html);
   };
 
   SuggestBox.prototype.showSuggestedWords = function(getWords, word, wordElement) {
-    this.wordElement = $(wordElement);
+    this.wordElement = A.one(wordElement);
     getWords(word, this.onGetWords.bind(this));
   };
 
@@ -327,7 +368,7 @@
 
   SuggestBox.prototype.position = function() {
 
-    var win = $(window);
+    var win = A.one(window);
     var element = this.wordElement.data('firstElement') || this.wordElement;
     var offset = element.offset();
     var boxOffset = this.config.suggestBox.offset;
@@ -413,68 +454,57 @@
 
   WebService.prototype.makeRequest = function(config) {
 
-    var defaultConfig = $.extend(true, {}, this.defaultConfig);
+    var defaultConfig = AUI().aggregate({}, this.defaultConfig);
 
-    return $.ajax($.extend(true, defaultConfig, config));
+      // CUSTOM START
+    // return $.ajax(AUI().aggregate(defaultConfig, config, true));
+      return A.io.request(AUI().aggregate(defaultConfig, config, true));
+      // CUSTOM END
   };
 
   WebService.prototype.checkWords = function(text, callback) {
     //CUSTOM START
-	//checkWords {"outcome":"success","data":[["denounncing","Noo","consequencse\\'s","caonsequences"]]}
-	if (this.defaultConfig.data.driver == "test") {
-		var testResponse = {"outcome":"success","data":[["denounncing","Noo","consequencse\\'s","caonsequences"]]};
-		callback(testResponse);
-		return;
-	}
-    Liferay.Service(
-        '/words/check-spelling',
-        {
-          text: text
-        },
-        callback
-    );
-//    return this.makeRequest({
-//      data: {
-//        action: 'get_incorrect_words',
-//        text: text
-//      },
-//      success: callback
-//    });
+  //checkWords {"outcome":"success","data":[["denounncing","Noo","consequencse\\'s","caonsequences"]]}
+  if (this.defaultConfig.data.driver == "test") {
+    var testResponse = {"outcome":"success","data":[["denounncing","Noo","consequencse\\'s","caonsequences"]]};
+    callback(testResponse);
+    return;
+  }
     //CUSTOM END
+    return this.makeRequest({
+      data: {
+        action: 'get_incorrect_words',
+        text: text
+      },
+      success: callback
+    });
   };
 
   WebService.prototype.getSuggestions = function(word, callback) {
     //CUSTOM START
-	if (this.defaultConfig.data.driver == "test") {
-		//getSuggestions("denounncing") ["denouncing","renouncing","announcing","trouncing","denounce","demonising","demonizing","defencing","denounced","denounces","penancing"]
-		//getSuggestions("consequencse's") ["consequence's","consequences","consequence","conscience's","convergence's","consciences","Constance's","convergences","consensuses","conservancies"]
-		var testData = {
-			"spelt":["spelled"],
-			"denounncing": ["denouncing","renouncing","announcing","trouncing","denounce","demonising","demonizing","defencing","denounced","denounces","penancing"],
-			"Noo": ["Ono","No","Nook","Noon","Boo","Moo","NOW","Noe","Nor","Now","NCO","Nov","Nob","Nod","Non","Nos","Not","Koo","Coo","Foo","Goo","Loo","Poo","Too","Woo","Zoo","No's"],
-			"consequencse's":["consequence's","consequences","consequence","conscience's","convergence's","consciences","Constance's","convergences","consensuses","conservancies"],
-			"caonsequences":["consequences","consequence's","consequence","consciences","conscience's","convergences","convergence's","Constance's"]
-		};
-		var testResponse = testData[word];
-		callback(testResponse);
-		return;
-	}
-    Liferay.Service(
-      '/words/get-suggestions',
-      {
-          word: word
-      },
-      callback
-    );
+  if (this.defaultConfig.data.driver == "test") {
+    //getSuggestions("denounncing") ["denouncing","renouncing","announcing","trouncing","denounce","demonising","demonizing","defencing","denounced","denounces","penancing"]
+    //getSuggestions("consequencse's") ["consequence's","consequences","consequence","conscience's","convergence's","consciences","Constance's","convergences","consensuses","conservancies"]
+    var testData = {
+      "spelt":["spelled"],
+      "denounncing": ["denouncing","renouncing","announcing","trouncing","denounce","demonising","demonizing","defencing","denounced","denounces","penancing"],
+      "Noo": ["Ono","No","Nook","Noon","Boo","Moo","NOW","Noe","Nor","Now","NCO","Nov","Nob","Nod","Non","Nos","Not","Koo","Coo","Foo","Goo","Loo","Poo","Too","Woo","Zoo","No's"],
+      "consequencse's":["consequence's","consequences","consequence","conscience's","convergence's","consciences","Constance's","convergences","consensuses","conservancies"],
+      "caonsequences":["consequences","consequence's","consequence","consciences","conscience's","convergences","convergence's","Constance's"]
+    };
+    var testResponse = testData[word];
+    callback(testResponse);
+    return;
+  }
+    //CUSTOM END
 
-//    return this.makeRequest({
-//      data: {
-//        action: 'get_suggestions',
-//        word: word
-//      },
-//      success: callback
-//    });
-      //CUSTOM END
+    return this.makeRequest({
+      data: {
+        action: 'get_suggestions',
+        word: word
+      },
+      success: callback
+    });
   };
 
   /* Spellchecker base parser
@@ -498,12 +528,26 @@
     ].join('|');
 
     text = text.replace(new RegExp(puncExpr, 'g'), ' '); // strip any punctuation
-    text = $.trim(text.replace(/\s{2,}/g, ' '));         // remove extra whitespace
+    text = AUI().Lang.trim(text.replace(/\s{2,}/g, ' '));         // remove extra whitespace
 
     // Remove numbers
-    text = $.map(text.split(' '), function(word) {
+    // CUSTOM START
+    /*text = $.map(text.split(' '), function(word) {
       return (/^\d+$/.test(word)) ? null : word;
-    }).join(' ');
+    }).join(' ');*/
+      var array = text.split(' ');
+      var mapped = [];
+
+      AUI().each(
+          array,
+          function(word) {
+              var a = (/^\d+$/.test(word)) ? null : word;
+              mapped.push(a);
+          }
+      );
+
+      text = mapped.join(' ');
+    // CUSTOM END
 
     return text;
   };
@@ -517,9 +561,25 @@
   inherits(TextParser, Parser);
 
   TextParser.prototype.getText = function(text, textGetter) {
-    return $.map(this.elements, function(element) {
-      return this.clean(textGetter ? textGetter(element) : $(element).val());
-    }.bind(this));
+      // CUSTOM START
+    /*return $.map(this.elements, function(element) {
+      return this.clean(textGetter ? textGetter(element) : A.one(element).val());
+    }.bind(this));*/
+      var instance = this;
+      var elements = instance.elements;
+      var mapped = [];
+
+      AUI().each(
+          elements,
+          function(element) {
+              var value = textGetter ? textGetter(element) : A.one(element).val();
+              value = this.clean(value);
+              mapped.push(value);
+          }
+      );
+
+      return mapped;
+      // CUSTOM END
   };
 
   TextParser.prototype.replaceWordInText = function(oldWord, newWord, text) {
@@ -528,7 +588,7 @@
   };
 
   TextParser.prototype.replaceWord = function(oldWord, replacement, element) {
-    element = $(element);
+    element = A.one(element);
     var newText = this.replaceWordInText(oldWord, replacement, element.val());
     element.val(newText);
   };
@@ -541,8 +601,9 @@
   };
   inherits(HtmlParser, Parser);
 
-  HtmlParser.prototype.getText = function(text, textGetter) {
-    if (text && (text = $(text)).length) {
+  // CUSTOM START
+  /*HtmlParser.prototype.getText = function(text, textGetter) {
+    if (text && (text = A.one(text)).length) {
       return this.clean(text.text());
     }
     return $.map(this.elements, function(element) {
@@ -550,18 +611,54 @@
       if (textGetter) {
         text = textGetter(element);
       } else {
-        text = $(element)
+        text = A.one(element)
         .clone()
         .find('[class^="spellchecker-"]')
         .remove()
         .end()
         .text();
       }
-      
+
       return this.clean(text);
 
     }.bind(this));
-  };
+  };*/
+    HtmlParser.prototype.getText = function(text, textGetter) {
+        if (text && (text == A.one(text).length)) {
+            return this.clean(text.text());
+        }
+
+        var mapped = [];
+        var cleanMap = [];
+        var elements = this.elements;
+
+        AUI().each(
+            elements,
+            function(element) {
+                if (textGetter) {
+                    text = textGetter(element);
+                }
+                else {
+                    text = A.one(element)
+                        .clone()
+                        .find('[class^="spellchecker-"]')
+                        .remove()
+                        .end()
+                        .text();
+                }
+
+                mapped.push(text);
+            }
+        );
+
+        // CUSTOM -- cleaned and put into another array
+        for (var i = 0; i < mapped.length; i++) {
+            cleanMap.push(this.clean(mapped[i]));
+        }
+
+        return cleanMap;
+    };
+  // CUSTOM END
 
   HtmlParser.prototype.replaceText = function(regExp, element, replaceText, captureGroup) {
     window.findAndReplaceDOMText(regExp, element, replaceText, captureGroup);
@@ -578,9 +675,32 @@
     this.replaceText(regExp, element[0], this.replaceTextHandler(oldWord, replacement), 2);
 
     // Remove this word from the list of incorrect words
-    this.incorrectWords = $.map(this.incorrectWords || [], function(word) {
+      // CUSTOM START
+    /*this.incorrectWords = $.map(this.incorrectWords || [], function(word) {
       return word === oldWord ? null : word;
-    });
+    });*/
+      var instance = this;
+      var incorrectWords = instance.incorrectWords;
+
+      if (typeof incorrectWords === 'undefined') {
+          incorrectWords = [];
+      }
+
+      var mapped = [];
+
+      AUI().each(
+          incorrectWords,
+          function(word) {
+              if (word == oldWord) {
+                  word = null;
+              }
+
+              mapped.push(word);
+          }
+      );
+
+      instance.incorrectWords = mapped;
+      // CUSTOM END
 
     this.highlightWords(this.incorrectWords, element);
   };
@@ -620,9 +740,23 @@
     }
 
     this.incorrectWords = incorrectWords;
-    incorrectWords = $.map(incorrectWords, function(word) {
+
+      // CUSTOM START
+    /*incorrectWords = $.map(incorrectWords, function(word) {
       return RegExp.escape(word);
-    });
+    });*/
+      var mapped = [];
+
+      AUI().each(
+          incorrectWords,
+          function(word) {
+              word = RegExp.escape(word);
+              mapped.push(word);
+          }
+      );
+
+      incorrectWords = mapped;
+      // CUSTOM END
 
     var regExp = '';
     regExp += '([^' + letterChars + '])';
@@ -640,7 +774,7 @@
     return function(fill, i, word) {
 
       // Replacement node
-      var span = $('<span />', {
+      var span = A.Node.create('<span />', {
         'class': pluginName + '-word-highlight'
       });
 
@@ -649,7 +783,7 @@
         c = i;
         replaceElement = span;
       }
-      
+
       span
       .text(fill)
       .data({
@@ -672,13 +806,19 @@
 
     Events.call(this);
 
-    this.elements = $(elements).attr('spellcheck', 'false');
-    this.config = $.extend(true, defaultConfig, config);
+    // this.elements = elements.attributes.spellcheck=false;
+    // CUSTOM START -- add the editor to get the text
+    this.elements = elements;
+    // CUSTOM END
+    this.config = AUI().aggregate(defaultConfig, config, true);
 
     this.setupWebService();
     this.setupParser();
 
-    if (this.elements.length) {
+    // CUSTOM -- removed this.elements.length
+    var type = typeof this.elements;
+    // if (this.elements.length) {
+    if (type !== 'undefined' || type != null) {
       this.setupSuggestBox();
       this.setupIncorrectWords();
       this.bindEvents();
@@ -691,9 +831,9 @@
   };
 
   SpellChecker.prototype.setupSuggestBox = function() {
-    
+
     this.suggestBox = new SuggestBox(this.config, this.elements);
-    
+
     this.on('replace.word.before', function() {
       this.suggestBox.close();
       this.suggestBox.detach();
@@ -711,8 +851,8 @@
   SpellChecker.prototype.setupIncorrectWords = function() {
 
     this.incorrectWords = new Collection(this.elements, function(element) {
-      return this.config.parser === 'html' ? 
-        new IncorrectWordsInline(this.config, this.parser, element) : 
+      return this.config.parser === 'html' ?
+        new IncorrectWordsInline(this.config, this.parser, element) :
         new IncorrectWordsBox(this.config, this.parser, element);
     }.bind(this));
 
@@ -726,8 +866,8 @@
   };
 
   SpellChecker.prototype.setupParser = function() {
-    this.parser = this.config.parser === 'html' ? 
-      new HtmlParser(this.elements) : 
+    this.parser = this.config.parser === 'html' ?
+      new HtmlParser(this.elements) :
       new TextParser(this.elements);
   };
 
@@ -735,7 +875,9 @@
     this.on('check.fail', this.onCheckFail.bind(this));
     this.suggestBox.on('ignore.word', this.onIgnoreWord.bind(this));
     this.suggestBox.on('select.word', this.onSelectWord.bind(this));
-    this.incorrectWords.on('select.word', this.onIncorrectWordSelect.bind(this));
+    // CUSTOM -- commenting out for now
+    // TODO
+    // this.incorrectWords.on('select.word', this.onIncorrectWordSelect.bind(this));
   };
 
   /* Pubic API methods */
@@ -754,7 +896,7 @@
   };
 
   SpellChecker.prototype.replaceWord = function(oldWord, replacement, elementOrText) {
-    
+
     if (typeof elementOrText === 'string') {
       return this.parser.replaceWordInText(oldWord, replacement, elementOrText);
     }
@@ -774,14 +916,14 @@
   /* Event handlers */
 
   SpellChecker.prototype.onCheckWords = function(callback) {
-    
+
     return function(data) {
 
       var incorrectWords = data.data;
       var outcome = 'success';
 
-      $.each(incorrectWords, function(i, words) {
-        if (words.length) {
+      AUI().each(incorrectWords, function(words) {
+        if (words.length > 0) {
           outcome = 'fail';
           return false;
         }
@@ -796,11 +938,11 @@
 
   SpellChecker.prototype.onCheckFail = function(badWords) {
     this.suggestBox.detach();
-    $.each(badWords, function(i, words) {
+    A.each(badWords, function(i, words) {
       if (words.length) {
         // Make array unique
-        words = $.grep(words, function(el, index){
-          return index === $.inArray(el, words);
+        words = A.grep(words, function(el, index){
+          return index === A.Array.indexOf(words, el);
         });
         this.incorrectWords.get(i).addWords(words);
       }
@@ -828,9 +970,9 @@
     this.trigger('select.word', e);
   };
 
-  $.SpellChecker = SpellChecker;
+  A.SpellChecker = SpellChecker;
 
-}(this, jQuery));
+}(this, AUI));
 
 /**
  * Some small changes were made by Richard Willis to allow this
@@ -856,9 +998,9 @@
  */
 window.findAndReplaceDOMText = (function() {
 
-  /** 
+  /**
    * findAndReplaceDOMText
-   * 
+   *
    * Locates matches and replaces with replacementNode
    *
    * @param {RegExp} regex The regular expression to match
@@ -896,9 +1038,9 @@ window.findAndReplaceDOMText = (function() {
   function _getMatchIndexes(m, captureGroup) {
 
     captureGroup = captureGroup || 0;
- 
+
     if (!m[0]) throw 'findAndReplaceDOMText cannot handle zero-length matches';
- 
+
     var index = m.index;
 
     if (captureGroup > 0) {
@@ -906,7 +1048,7 @@ window.findAndReplaceDOMText = (function() {
       if (!cg) throw 'Invalid capture group';
       index += m[0].indexOf(cg);
       m[0] = cg;
-    } 
+    }
 
     return [ index, index + m[0].length, [ m[0] ] ];
   }
@@ -931,7 +1073,7 @@ window.findAndReplaceDOMText = (function() {
 
   }
 
-  /** 
+  /**
    * Steps through the target node, looking for matches, and
    * calling replaceFn when a match is found.
    */
@@ -978,7 +1120,7 @@ window.findAndReplaceDOMText = (function() {
           matchIndex: matchIndex
         });
         // replaceFn has to return the node that replaced the endNode
-        // and then we step back so we can continue from the end of the 
+        // and then we step back so we can continue from the end of the
         // match:
         atIndex -= (endNode.length - endNodeIndex);
         startNode = null;
@@ -1022,7 +1164,7 @@ window.findAndReplaceDOMText = (function() {
     reverts = [];
   };
 
-  /** 
+  /**
    * Generates the actual replaceFn which splits up text nodes
    * and inserts the replacement element.
    */
@@ -1118,3 +1260,169 @@ window.findAndReplaceDOMText = (function() {
   return findAndReplaceDOMText;
 
 }());
+
+//CUSTOM START
+var Callbacks = function( options ) {
+
+    // Convert options from String-formatted to Object-formatted if needed
+    // (we check in cache first)
+    options = typeof options === "string" ?
+        ( optionsCache[ options ] || createOptions( options ) ) :
+        AUI().aggregate( {}, options );
+
+    var // Last fire value (for non-forgettable lists)
+        memory,
+    // Flag to know if list was already fired
+        fired,
+    // Flag to know if list is currently firing
+        firing,
+    // First callback to fire (used internally by add and fireWith)
+        firingStart,
+    // End of the loop when firing
+        firingLength,
+    // Index of currently firing callback (modified by remove if needed)
+        firingIndex,
+    // Actual callback list
+        list = [],
+    // Stack of fire calls for repeatable lists
+        stack = !options.once && [],
+    // Fire callbacks
+        fire = function( data ) {
+            memory = options.memory && data;
+            fired = true;
+            firingIndex = firingStart || 0;
+            firingStart = 0;
+            firingLength = list.length;
+            firing = true;
+            for ( ; list && firingIndex < firingLength; firingIndex++ ) {
+                if ( list[ firingIndex ].apply( data[ 0 ], data[ 1 ] ) === false && options.stopOnFalse ) {
+                    memory = false; // To prevent further calls using add
+                    break;
+                }
+            }
+            firing = false;
+            if ( list ) {
+                if ( stack ) {
+                    if ( stack.length ) {
+                        fire( stack.shift() );
+                    }
+                } else if ( memory ) {
+                    list = [];
+                } else {
+                    self.disable();
+                }
+            }
+        },
+    // Actual Callbacks object
+        self = {
+            // Add a callback or a collection of callbacks to the list
+            add: function() {
+                if ( list ) {
+                    // First, we save the current length
+                    var start = list.length;
+                    (function add( args ) {
+                        AUI().each( args, function( _, arg ) {
+                            var type = typeof arg;
+                            if ( type === "function" ) {
+                                if ( !options.unique || !self.has( arg ) ) {
+                                    list.push( arg );
+                                }
+                            } else if ( arg && arg.length && type !== "string" ) {
+                                // Inspect recursively
+                                add( arg );
+                            }
+                        });
+                    })( arguments );
+                    // Do we need to add the callbacks to the
+                    // current firing batch?
+                    if ( firing ) {
+                        firingLength = list.length;
+                        // With memory, if we're not firing then
+                        // we should call right away
+                    } else if ( memory ) {
+                        firingStart = start;
+                        fire( memory );
+                    }
+                }
+                return this;
+            },
+            // Remove a callback from the list
+            remove: function() {
+                if ( list ) {
+                    AUI().each( arguments, function( _, arg ) {
+                        var index;
+                        while( ( index = A.Array.indexOf( list, arg, index ) ) > -1 ) {
+                            list.splice( index, 1 );
+                            // Handle firing indexes
+                            if ( firing ) {
+                                if ( index <= firingLength ) {
+                                    firingLength--;
+                                }
+                                if ( index <= firingIndex ) {
+                                    firingIndex--;
+                                }
+                            }
+                        }
+                    });
+                }
+                return this;
+            },
+            // Check if a given callback is in the list.
+            // If no argument is given, return whether or not list has callbacks attached.
+            has: function( fn ) {
+                return fn ? A.Array.indexOf( list, fn ) > -1 : !!( list && list.length );
+            },
+            // Remove all callbacks from the list
+            empty: function() {
+                list = [];
+                firingLength = 0;
+                return this;
+            },
+            // Have the list do nothing anymore
+            disable: function() {
+                list = stack = memory = undefined;
+                return this;
+            },
+            // Is it disabled?
+            disabled: function() {
+                return !list;
+            },
+            // Lock the list in its current state
+            lock: function() {
+                stack = undefined;
+                if ( !memory ) {
+                    self.disable();
+                }
+                return this;
+            },
+            // Is it locked?
+            locked: function() {
+                return !stack;
+            },
+            // Call all callbacks with the given context and arguments
+            fireWith: function( context, args ) {
+                args = args || [];
+                args = [ context, args.slice ? args.slice() : args ];
+                if ( list && ( !fired || stack ) ) {
+                    if ( firing ) {
+                        stack.push( args );
+                    } else {
+                        fire( args );
+                    }
+                }
+                return this;
+            },
+            // Call all the callbacks with the given arguments
+            fire: function() {
+                self.fireWith( this, arguments );
+                return this;
+            },
+            // To know if the callbacks have already been called at least once
+            fired: function() {
+                return !!fired;
+            }
+        };
+
+    return self;
+};
+//CUSTOM END
