@@ -21,8 +21,7 @@
 <%@ page import="com.liferay.portal.kernel.util.HtmlUtil" %>
 <%@ page import="com.liferay.portal.kernel.util.LocaleUtil" %>
 <%@ page import="com.liferay.portal.kernel.util.ParamUtil" %>
-<%@ page import="com.liferay.portal.kernel.util.PropsKeys" %>
-<%@ page import="com.liferay.portal.kernel.util.PropsUtil" %>
+<%@ page import="com.liferay.portal.kernel.util.StringBundler" %>
 <%@ page import="com.liferay.portal.kernel.xuggler.XugglerUtil" %>
 
 <%@ page import="java.util.Locale" %>
@@ -37,14 +36,23 @@ boolean resizable = ParamUtil.getBoolean(request, "resizable");
 
 response.setContentType(ContentTypes.TEXT_JAVASCRIPT);
 
-String spellcheckerPlugins = "";
+//TODO: check portal properties to decide which spellchecker(s) should be active
+//TODO: added isJQuerySpellCheckerEnabled for setting up a place for portal property
+boolean isJQuerySpellCheckerEnabled = true;
+String spellcheckerPlugins = "'SpellChecker', 'Scayt'";
+String extraPlugins = "ajaxsave,media,restore,scayt,wsc";
 
-if (PropsValues.EDITOR_WYSIWYG_SPELLCHECKER_WEBSPELLCHECKER) {
-	spellcheckerPlugins = spellcheckerPlugins + "'SpellChecker', 'Scayt', ";
-}
+if (isJQuerySpellCheckerEnabled) {
+    StringBundler sb = new StringBundler();
 
-if (PropsValues.EDITOR_WYSIWYG_SPELLCHECKER_LIFERAY) {
-	spellcheckerPlugins = spellcheckerPlugins + "'jQuerySpellChecker'";
+    sb.append(spellcheckerPlugins);
+    sb.append(", 'jQuerySpellChecker'");
+    spellcheckerPlugins = sb.toString();
+
+    sb = new StringBundler();
+    sb.append(extraPlugins);
+    sb.append(",jqueryspellchecker");
+    extraPlugins = sb.toString();
 }
 %>
 
@@ -96,7 +104,7 @@ CKEDITOR.config.contentsLanguage = '<%= HtmlUtil.escapeJS(contentsLanguageId.rep
 
 CKEDITOR.config.entities = false;
 
-CKEDITOR.config.extraPlugins = 'ajaxsave,media,restore,scayt,wsc,jqueryspellchecker';
+CKEDITOR.config.extraPlugins = '<%= extraPlugins %>';
 
 CKEDITOR.config.height = 265;
 
