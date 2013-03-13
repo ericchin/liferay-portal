@@ -18,7 +18,6 @@
 
 <%@ page import="com.liferay.portal.kernel.language.LanguageUtil" %>
 <%@ page import="com.liferay.portal.kernel.util.ContentTypes" %>
-<%@ page import="com.liferay.portal.kernel.util.GetterUtil" %>
 <%@ page import="com.liferay.portal.kernel.util.HtmlUtil" %>
 <%@ page import="com.liferay.portal.kernel.util.LocaleUtil" %>
 <%@ page import="com.liferay.portal.kernel.util.ParamUtil" %>
@@ -38,18 +37,15 @@ boolean resizable = ParamUtil.getBoolean(request, "resizable");
 
 response.setContentType(ContentTypes.TEXT_JAVASCRIPT);
 
-// Ken Boyer: Modification start
 String spellcheckerPlugins = "";
 
-if (GetterUtil.getBoolean(PropsUtil.get(PropsKeys.EDITOR_SPELLCHECKER_WEBSPELLCHECKER))) {
+if (PropsValues.EDITOR_WYSIWYG_SPELLCHECKER_WEBSPELLCHECKER) {
 	spellcheckerPlugins = spellcheckerPlugins + "'SpellChecker', 'Scayt', ";
 }
 
-if (GetterUtil.getBoolean(PropsUtil.get(PropsKeys.EDITOR_SPELLCHECKER_LIFERAY))) {
+if (PropsValues.EDITOR_WYSIWYG_SPELLCHECKER_LIFERAY) {
 	spellcheckerPlugins = spellcheckerPlugins + "'jQuerySpellChecker'";
 }
-// Ken Boyer: Modification end
-
 %>
 
 if (!CKEDITOR.stylesSet.get('liferayStyles')) {
