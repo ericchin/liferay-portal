@@ -102,25 +102,30 @@ public class DLFileEntryPermission {
 			long dlFolderId = dlFileEntry.getFolderId();
 
 			if (dlFolderId == DLFolderConstants.DEFAULT_PARENT_FOLDER_ID) {
-				return DLPermission.contains(
+				boolean hasDLPermission = DLPermission.contains(
 					permissionChecker, dlFileEntry.getGroupId(), actionId);
-			}
 
-			try {
-				DLFolder dlFolder = DLFolderLocalServiceUtil.getFolder(
-					dlFolderId);
-
-				if (!DLFolderPermission.contains(
-						permissionChecker, dlFolder, ActionKeys.ACCESS) &&
-					!DLFolderPermission.contains(
-						permissionChecker, dlFolder, ActionKeys.VIEW)) {
-
+				if (!hasDLPermission) {
 					return false;
 				}
 			}
-			catch (NoSuchFolderException nsfe) {
-				if (!dlFileEntry.isInTrash()) {
-					throw nsfe;
+			else {
+				try {
+					DLFolder dlFolder = DLFolderLocalServiceUtil.getFolder(
+						dlFolderId);
+
+					if (!DLFolderPermission.contains(
+							permissionChecker, dlFolder, ActionKeys.ACCESS) &&
+						!DLFolderPermission.contains(
+							permissionChecker, dlFolder, ActionKeys.VIEW)) {
+
+						return false;
+					}
+				}
+				catch (NoSuchFolderException nsfe) {
+					if (!dlFileEntry.isInTrash()) {
+						throw nsfe;
+					}
 				}
 			}
 		}
